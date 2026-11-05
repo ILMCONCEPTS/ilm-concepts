@@ -13,3 +13,4 @@ Static HTML/CSS/JS, no build step. Open index.html or serve: `python3 -m http.se
 - `contract.html`: Home Modification Request (a request/work authorization form for estimates, not a binding contract).
 - Remaining placeholder (class `ph`): CSLB license #.
 
+Redeploy kick 2026-11-05T19:53Z

@@ -4,7 +4,7 @@
   if(t){t.addEventListener('click',function(){var o=m.classList.toggle('open');t.setAttribute('aria-expanded',o)})}
   var y=document.getElementById('yr');if(y)y.textContent=new Date().getFullYear();
 
-  // ----- Forms -----
+  // ----- Forms (Web3Forms) -----
   var SUBJECTS={maintenance:'New Maintenance Request – ILM Concepts',estimate:'New Estimate Request – ILM Concepts',junk:'New Junk Removal Request – ILM Concepts','junk-removal':'New Junk Removal Request – ILM Concepts',contract:'New Home Modification Request – ILM Concepts'};
   function labelFor(form,name){
     var el=form.querySelector('[name="'+name+'"]');if(!el)return name;
@@ -15,11 +15,12 @@
     return t.length>90?t.slice(0,87)+'…':t;
   }
   // Text payload with readable labels; multi-checkbox groups joined into one line.
-  function buildPayload(form,withFiles){
+  // Files are never included (Web3Forms free plan does not support attachments).
+  function buildPayload(form){
     var fd=new FormData(),seen={};
     form.querySelectorAll('input,select,textarea').forEach(function(el){
-      var n=el.name;if(!n||n==='_honey'||seen[n])return;
-      if(el.type==='file'){if(withFiles){for(var i=0;i<el.files.length;i++)fd.append(n,el.files[i])}return}
+      var n=el.name;if(!n||n==='_honey'||n==='botcheck'||seen[n])return;
+      if(el.type==='file')return;
       seen[n]=1;var vals=[];
       form.querySelectorAll('[name="'+n+'"]').forEach(function(x){
         if((x.type==='checkbox'||x.type==='radio')){if(x.checked)vals.push(x.value)}else if(x.value.trim())vals.push(x.value.trim())});
@@ -27,14 +28,15 @@
     });
     return fd;
   }
-  // Show success after a native (file upload) post redirects back here.
+  function formsLive(){return !!(cfg.FORM_ENDPOINT&&cfg.FORM_ACCESS_KEY)}
+  // Show success after a legacy ?sent=1 redirect (old FormSubmit file path).
   if(/[?&]sent=1/.test(location.search)){
     var f0=document.querySelector('form[data-ilm]');
     if(f0){var s0=document.getElementById(f0.dataset.success);f0.hidden=true;s0.hidden=false}
   }
   document.querySelectorAll('form[data-ilm]').forEach(function(form){
     form.setAttribute('novalidate','');
-    if(!cfg.FORM_ENDPOINT){var n=form.querySelector('.demo-note');if(n)n.hidden=false;}
+    if(!formsLive()){var n=form.querySelector('.demo-note');if(n)n.hidden=false;}
     function check(el){
       var f=el.closest('.field, fieldset');if(!f)return true;
       var ok=el.checkValidity();
@@ -52,8 +54,12 @@
     form.addEventListener('submit',function(e){
       e.preventDefault();
       var hp=form.querySelector('[name=_honey]');
+      var bc=form.querySelector('[name=botcheck]');
       var bad=null;
-      form.querySelectorAll('input,select,textarea').forEach(function(el){if(el.name!=='_honey'&&!check(el)&&!bad)bad=el});
+      form.querySelectorAll('input,select,textarea').forEach(function(el){
+        if(el.name==='_honey'||el.name==='botcheck')return;
+        if(!check(el)&&!bad)bad=el;
+      });
       if(bad){bad.focus();return}
       var btn=form.querySelector('[type=submit]'),er=form.querySelector('.send-err');
       if(er)er.hidden=true;
@@ -65,26 +71,24 @@
         s.setAttribute('tabindex','-1');s.focus();window.scrollTo({top:s.offsetTop-120,behavior:'smooth'});
       };
       var fail=function(){btn.disabled=false;btn.textContent='Try again';if(er){er.hidden=false;er.scrollIntoView({block:'center'})}};
-      if(!cfg.FORM_ENDPOINT){
-        // DEMO MODE: no endpoint configured -> nothing is sent. Shows success UI only.
+      if(!formsLive()){
+        // DEMO MODE: missing endpoint or access key -> nothing is sent.
         setTimeout(function(){done(true)},500);return;
       }
-      if(hp&&hp.value){done(false);return} // bot filled honeypot: silently drop
+      // Honeypot: drop silently if _honey filled, or if botcheck checkbox is checked.
+      if(hp&&hp.value){done(false);return}
+      if(bc&&((bc.type==='checkbox'&&bc.checked)||(bc.type!=='checkbox'&&bc.value))){done(false);return}
       var subject=SUBJECTS[form.dataset.ilm]||'New Website Request – ILM Concepts';
       var email=form.querySelector('[name=email]');
       var hasFiles=[].some.call(form.querySelectorAll('input[type=file]'),function(x){return x.files&&x.files.length});
-      var meta={_subject:subject,_template:'table',_captcha:'false',_replyto:email?email.value:''};
+      var body=buildPayload(form);
+      body.append('access_key',cfg.FORM_ACCESS_KEY);
+      body.append('subject',subject);
+      body.append('from_name','ILM Concepts');
+      body.append('replyto',email?email.value:'');
       if(hasFiles){
-        // FormSubmit only accepts attachments on a normal (non-AJAX) multipart post.
-        var nf=document.createElement('form');nf.method='POST';nf.enctype='multipart/form-data';nf.hidden=true;
-        nf.action=cfg.FORM_ENDPOINT.replace('/ajax/','/');
-        meta._next=location.href.split('?')[0]+'?sent=1';
-        var fd=buildPayload(form,false);fd.forEach(function(v,k){meta[k]=v});
-        Object.keys(meta).forEach(function(k){var i=document.createElement('input');i.type='hidden';i.name=k;i.value=meta[k];nf.appendChild(i)});
-        form.querySelectorAll('input[type=file]').forEach(function(fi){if(fi.files.length){var c=fi.cloneNode();c.files=fi.files;c.name=labelFor(form,fi.name);nf.appendChild(c)}});
-        document.body.appendChild(nf);nf.submit();return;
+        body.append('Attachments note','Visitor selected files but free plan does not support uploads — contact them for photos.');
       }
-      var body=buildPayload(form,false);Object.keys(meta).forEach(function(k){body.append(k,meta[k])});
       fetch(cfg.FORM_ENDPOINT,{method:'POST',body:body,headers:{Accept:'application/json'}})
         .then(function(r){return r.json().catch(function(){return {}}).then(function(j){
           if(!r.ok||String(j.success)!=='true')throw new Error(j.message||'send failed');done(false)})})

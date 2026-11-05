@@ -14,3 +14,4 @@ Static HTML/CSS/JS, no build step. Open index.html or serve: `python3 -m http.se
 - Remaining placeholder (class `ph`): CSLB license #.
 
 Redeploy kick 2026-11-05T19:53Z
+unlock2 19:55:06

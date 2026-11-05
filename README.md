@@ -15,3 +15,4 @@ Static HTML/CSS/JS, no build step. Open index.html or serve: `python3 -m http.se
 
 Redeploy kick 2026-11-05T19:53Z
 unlock2 19:55:06
+after-purge 19:59:38

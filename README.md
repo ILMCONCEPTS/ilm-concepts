@@ -12,3 +12,4 @@ Static HTML/CSS/JS, no build step. Open index.html or serve: `python3 -m http.se
 - Contact info: phone (559) 344-9420, email i.l.mgmt.services@gmail.com, business hours 9:00 am – 4:30 pm, emergency maintenance 24 hours a day (no street address shown).
 - `contract.html`: Home Modification Request (a request/work authorization form for estimates, not a binding contract).
 - Remaining placeholder (class `ph`): CSLB license #.
+
